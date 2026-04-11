@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en-us">
 
 <head>
@@ -9,10 +9,12 @@
 </head>
 
 <body>
+	<!-- Modal for general content -->
 	<div id="generalModal" class="modal">
 		<div id="generalModalContent" class="modalContent"></div>
 	</div>
 
+	<!-- Game container and loading elements -->
 	<div id="gameContainer"></div>
 	<div id="loader">
 		<img class="logo" src="logo.png">
@@ -22,10 +24,9 @@
 		</div>
 	</div>
 
-
+	<!-- ==================== FULLSCREEN UTILITIES ==================== -->
 	<script>
-		/* View in fullscreen */
-		var elem = document.documentElement;
+		// Request fullscreen with cross-browser compatibility
 		function openFullscreen() {
 			if (elem.requestFullscreen) {
 				elem.requestFullscreen();
@@ -38,7 +39,7 @@
 			}
 		}
 
-		/* Close fullscreen */
+		// Exit fullscreen with cross-browser compatibility
 		function closeFullscreen() {
 			if (document.exitFullscreen) {
 				document.exitFullscreen();
@@ -51,6 +52,7 @@
 			}
 		}
 
+		// Toggle fullscreen mode
 		function updateFullscreen() {
 			var isInFullScreen = (document.fullscreenElement && document.fullscreenElement !== null) ||
 				(document.webkitFullscreenElement && document.webkitFullscreenElement !== null) ||
@@ -61,6 +63,13 @@
 			else
 				closeFullscreen();
 		}
+
+		var elem = document.documentElement;
+	</script>
+
+	<!-- ==================== NETWORK & STATIC ASSET CONFIGURATION ==================== -->
+	<script>
+		// WebSocket proxy configuration
 		window.rWS = WebSocket;
 		WebSocket = function(url, options) {
 			var split = url.split('://');
@@ -76,8 +85,10 @@
 				default:
 					prefix = split[0];
 			}
-			return new(Function.prototype.bind.call(window.rWS, null, (split[1].match(/\//g) || []).length === 0 ? (split[1].includes('?') ? prefix + split[1].replace('?', '/?') : prefix + split[1] + '/') : prefix + split[1], options));
+			return new(Function.prototype.bind.call(window.rWS, null, (split[1].match(/\//g) || []).length === 0 ? (split[1].includes('?') ? prefix + split[1].replace('?', '/?') : prefix + split[1] + '/') [...]
 		};
+
+		// Determine static asset endpoint (fallback to backup if primary fails)
 		window.staticEndpoint = 'thesuperstatic.gq';
         var didFail = false;
         try {
@@ -90,30 +101,37 @@
         } catch (e) {
             didFail = true;
         }
+        
+        // Use backup endpoint if primary fails
         if (didFail) {
             fetch('https://onebigstatic-tmm.tbt.mx/counter/increment?tag=' + encodeURIComponent('onebigstatic'));
             window.staticEndpoint = 'onebigstatic-tmm.tbt.mx';
         } else {
             fetch('https://onebigstatic-tmm.tbt.mx/counter/increment?tag=' + encodeURIComponent('thesuperstatic'));
         }
+
+		// Intercept XMLHttpRequest to route through static endpoint
 		var origOpen = XMLHttpRequest.prototype.open;
 		XMLHttpRequest.prototype.open = function(...args) {
 			args[1] = /^http/.test(args[1]) ? 'https://' + window.staticEndpoint + '/static/' + args[1] : args[1];
 			args[1] = args[1].replace(/ /g, '%2520').replace(/%20/g, '%2520');
 			origOpen.apply(this, args);
 		};
-		window.versionPrefix = (function(){let request=new XMLHttpRequest();origOpen.call(request,'GET','https://onebigstatic-tmm.tbt.mx/shortstatic/https://1v1.lol/',false);request.send();return request.responseText})().match(/https:\/\/justbuild\.nyc3\.cdn\.digitaloceanspaces\.com\/[^"]+\//)[0]
+
+		window.versionPrefix = (function(){let request=new XMLHttpRequest();origOpen.call(request,'GET','https://onebigstatic-tmm.tbt.mx/shortstatic/https://1v1.lol/',false);request.send();return reque[...]
 		document.write('<script id="unity-loader" src="https://' + window.staticEndpoint + '/static/' + window.versionPrefix + 'UnityLoader.js"><\/script>');
+		
+		// Request new ad from game instance
 		function requestNewAd(){gameInstance.SendMessage('AdsManager', 'OnWebCallback')}
 	</script>
 
-	<!--<script id="unity-loader" src="https://onebigstatic-tmm.tbt.mx/static/https://justbuild.nyc3.cdn.digitaloceanspaces.com/CI/27/UnityLoader.js"></script>-->
-    <script>
-		var gameJsonUrl = window.versionPrefix + "WebGL.json"; //%gameJsonUrl
+	<!-- ==================== UNITY GAME INITIALIZATION ==================== -->
+	<script>
+		var gameJsonUrl = window.versionPrefix + "WebGL.json";
         var gameInstance = UnityLoader.instantiate("gameContainer", gameJsonUrl, {onProgress: UnityProgress});
-        //var gameInstance = UnityLoader.instantiate("gameContainer", "Build/WebGL.json", {onProgress: UnityProgress});
 		var lockedOccured = false;
 
+		// Update loader progress bar
 		function UnityProgress(gameInstance, progress) {
 			if (!gameInstance.Module) {
 				return;
@@ -131,17 +149,23 @@
 				gameLoaded = true;
 			}
 		}
+	</script>
 
+	<!-- ==================== INPUT & CONTROLS ==================== -->
+	<script>
+		// Prevent certain key combinations and default behaviors
 		document.onkeydown = function (e) {
 			if (e.altKey || e.ctrlKey || e.key == "F1" || e.key == "F2" || e.key == "F3" || e.key == "F4") {
 				e.preventDefault();
 			}
 		}
 
+		// Prevent default mouse up behavior
 		document.onmouseup = function (e) {
 			e.preventDefault();
 		}
 
+		// Handle pointer lock changes (mouse capture)
 		document.addEventListener('pointerlockchange', lockChangeAlert, false);
 		document.addEventListener('mozpointerlockchange', lockChangeAlert, false);
 
@@ -153,12 +177,18 @@
 				gameInstance.SendMessage("Pause Menu", "PauseGame");
 			}
 		}
+	</script>
 
+	<!-- ==================== AD MANAGEMENT ==================== -->
+	<script>
 		var refreshNextTime = true;
+		var timeSinceRefresh = 0;
+		var timeAdsVisible = 0;
+		var counter;
+		var adsVisible = false;
 
+		// Show ad containers and start tracking
 		function showAds() {
-			//console.log("show ads");
-
 			document.getElementById("adRectangleTop").style.display = "block";
 			document.getElementById("adRectangleBottom").style.display = "block";
 			document.getElementById("adLeaderboardBottom").style.display = "block";
@@ -173,9 +203,8 @@
 			}
 		}
 
+		// Hide ad containers and pause tracking
 		function hideAds() {
-			//console.log("hide ads");
-
 			document.getElementById("adRectangleTop").style.display = "none";
 			document.getElementById("adRectangleBottom").style.display = "none";
 			document.getElementById("adLeaderboardBottom").style.display = "none";
@@ -183,13 +212,9 @@
 			pauseCounter();
 		}
 
+		// Refresh ads if minimum time has elapsed
 		function refresh() {
-
-			//console.log("time since ads refresh = " + timeSinceRefresh + " seconds");
-			//console.log("time ads visible = " + timeAdsVisible + " seconds");
-
 			if (timeSinceRefresh <= 30 || timeAdsVisible <= 2) {
-				//console.log("don't refresh");
 				return;
 			}
 
@@ -200,25 +225,9 @@
 
 			timeSinceRefresh = 0;
 			timeAdsVisible = 0;
-			//console.log("refresh ads");
 		}
 
-		window.onfocus = function () {
-			//console.log("onfocus");
-			resumeCounter();
-			refresh();
-		};
-
-		window.onblur = function () {
-			//console.log("onblur");
-			pauseCounter();
-		};
-
-		var timeSinceRefresh = 0;
-		var timeAdsVisible = 0;
-		var counter;
-		var adsVisible = false;
-
+		// Start timing counter
 		function startCounter() {
 			timeSinceRefresh++;
 			if (adsVisible)
@@ -229,86 +238,37 @@
 			}, 1000);
 		}
 
+		// Resume ad visibility tracking
 		function resumeCounter() {
 			adsVisible = true;
 		}
 
+		// Pause ad visibility tracking
 		function pauseCounter() {
 			adsVisible = false;
 		}
-	</script>
-	<!-- Firebase App (the core Firebase SDK) is always required and must be listed first -->
-	<script src="https://www.gstatic.com/firebasejs/6.3.4/firebase-app.js"></script>
 
-	<!-- Add Firebase products that you want to use -->
-	<script src="https://www.gstatic.com/firebasejs/6.3.4/firebase-auth.js"></script>
-	<script src="https://www.gstatic.com/firebasejs/6.3.4/firebase-firestore.js"></script>
+		// Resume/refresh ads when window gains focus
+		window.onfocus = function () {
+			resumeCounter();
+			refresh();
+		};
 
-	<script src="firebase.js?v=%ciVersion%"></script>
-	<script src="login.js?v=%ciVersion%"></script>
-	<script src="fireStore.js?v=%ciVersion%"></script>
-
-	<script>
-		var hostname = window.location.hostname;
-		if(hostname.indexOf("dev1v1") >= 0 || hostname.indexOf("dev.1v1") >= 0){
-			initializeFireBaseDev();
-		} else{
-			initializeFireBase();
-		}
-
-		// initializeFirestore();
+		// Pause ad tracking when window loses focus
+		window.onblur = function () {
+			pauseCounter();
+		};
 	</script>
 
+	<!-- ==================== AD BLOCKER DETECTION ==================== -->
 	<script>
-		isIframe = false;
-		if (window.self != window.top) {
-			// isIframe = true;
-			function WindowResize() {
-				var v = window.innerWidth;
-				var maxRes = 1320;
-
-				if (v < maxRes) {
-					var ads = document.getElementsByClassName('ad');
-
-					for (const ad of ads) {
-						ad.style.transform = "scale(" + v / maxRes + ")";
-					}
-				}
-				else {
-					var ads = document.getElementsByClassName('ad');
-
-					for (const ad of ads) {
-						ad.style.transform = "scale(1)";
-					}
-				}
-			}
-			window.addEventListener("resize", WindowResize);
-			WindowResize();
-		}
-		else {
-			var styles = `
-    @media screen and (max-width: 1200px) { 
-		.ad-leaderboard-bottom {
-			display: none !important;
-		}
-	}
-`
-
-			var styleSheet = document.createElement("style")
-			styleSheet.type = "text/css"
-			styleSheet.innerText = styles
-			document.head.appendChild(styleSheet)
-		}
-		
-	</script>
-	<script>
-		function sleep(ms) 
-		{
-  			return new Promise(resolve => setTimeout(resolve, ms));
+		// Utility function for async delays
+		function sleep(ms) {
+			return new Promise(resolve => setTimeout(resolve, ms));
 		}
 
-		async function CheckAdBlock() 
-		{
+		// Check if ad blocker is enabled after game loads
+		async function CheckAdBlock() {
 			await sleep(20000);
 			var adBlockEnabled = false;
 			var testAd = document.createElement('div');
@@ -316,23 +276,78 @@
 			testAd.className = 'adsbox';
 			document.body.appendChild(testAd);
 			window.setTimeout(function() {
-			if (testAd.offsetHeight === 0) {
-				adBlockEnabled = true;
-			}
-			testAd.remove();
-			if(adBlockEnabled)
-			{
-				gameInstance.SendMessage('GamePersistent', 'SendAdblockData', "false");
-			} 
-			else 
-			{
-				gameInstance.SendMessage('GamePersistent', 'SendAdblockData', "false");
-			}		
+				if (testAd.offsetHeight === 0) {
+					adBlockEnabled = true;
+				}
+				testAd.remove();
+				if(adBlockEnabled) {
+					gameInstance.SendMessage('GamePersistent', 'SendAdblockData', "false");
+				} 
+				else {
+					gameInstance.SendMessage('GamePersistent', 'SendAdblockData', "false");
+				}		
 			}, 100);
 		}
 
 		CheckAdBlock();
-	
+	</script>
+
+	<!-- ==================== FIREBASE INITIALIZATION ==================== -->
+	<!-- Firebase Core SDK -->
+	<script src="https://www.gstatic.com/firebasejs/6.3.4/firebase-app.js"></script>
+
+	<!-- Firebase Services (Auth & Firestore) -->
+	<script src="https://www.gstatic.com/firebasejs/6.3.4/firebase-auth.js"></script>
+	<script src="https://www.gstatic.com/firebasejs/6.3.4/firebase-firestore.js"></script>
+
+	<!-- Custom Firebase Scripts -->
+	<script src="firebase.js?v=%ciVersion%"></script>
+	<script src="login.js?v=%ciVersion%"></script>
+	<script src="fireStore.js?v=%ciVersion%"></script>
+
+	<!-- Initialize Firebase based on environment -->
+	<script>
+		var hostname = window.location.hostname;
+		if(hostname.indexOf("dev1v1") >= 0 || hostname.indexOf("dev.1v1") >= 0){
+			initializeFireBaseDev();
+		} else {
+			initializeFireBase();
+		}
+	</script>
+
+	<!-- ==================== RESPONSIVE AD SCALING ==================== -->
+	<script>
+		isIframe = false;
+		if (window.self != window.top) {
+			// Scale ads in iframe based on window width
+			function WindowResize() {
+				var v = window.innerWidth;
+				var maxRes = 1320;
+
+				var ads = document.getElementsByClassName('ad');
+				var scale = v < maxRes ? v / maxRes : 1;
+
+				for (const ad of ads) {
+					ad.style.transform = "scale(" + scale + ")";
+				}
+			}
+			window.addEventListener("resize", WindowResize);
+			WindowResize();
+		}
+		else {
+			// Hide leaderboard ads on screens smaller than 1200px
+			var styles = `
+    @media screen and (max-width: 1200px) { 
+		.ad-leaderboard-bottom {
+			display: none !important;
+		}
+	}
+`;
+			var styleSheet = document.createElement("style");
+			styleSheet.type = "text/css";
+			styleSheet.innerText = styles;
+			document.head.appendChild(styleSheet);
+		}
 	</script>
 </body>
 
