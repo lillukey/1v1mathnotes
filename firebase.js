@@ -11,6 +11,7 @@ function initializeFireBase(){
 	};
 	// Initialize Firebase
 	firebase.initializeApp(firebaseConfig);
+	initializeFirestore(); // This links it to fireStore.js
 }
 
 function initializeFireBaseDev(){
