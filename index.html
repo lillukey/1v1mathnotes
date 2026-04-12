@@ -26,6 +26,7 @@
 
 	<!-- ==================== FULLSCREEN UTILITIES ==================== -->
 	<script>
+		var isIframe = (window.self !== window.top);
 		// Request fullscreen with cross-browser compatibility
 		function openFullscreen() {
 			if (elem.requestFullscreen) {
